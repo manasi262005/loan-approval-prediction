@@ -1,0 +1,79 @@
+{
+  "dashboard": {
+    "title": "Loan Approval Model Monitoring",
+    "panels": [
+      {
+        "title": "Total Predictions",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum(loan_predictions_total)"
+          }
+        ],
+        "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0}
+      },
+      {
+        "title": "Approved vs Rejected",
+        "type": "piechart",
+        "targets": [
+          {
+            "expr": "loan_predictions_total",
+            "legendFormat": "{{result}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 8, "x": 6, "y": 0}
+      },
+      {
+        "title": "Prediction Latency (avg)",
+        "type": "gauge",
+        "targets": [
+          {
+            "expr": "rate(loan_prediction_latency_seconds_sum[5m]) / rate(loan_prediction_latency_seconds_count[5m])"
+          }
+        ],
+        "gridPos": {"h": 4, "w": 6, "x": 0, "y": 4}
+      },
+      {
+        "title": "Model Accuracy",
+        "type": "gauge",
+        "targets": [
+          {
+            "expr": "loan_model_accuracy"
+          }
+        ],
+        "gridPos": {"h": 4, "w": 6, "x": 14, "y": 0}
+      },
+      {
+        "title": "Predictions Over Time",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "rate(loan_predictions_total[5m])",
+            "legendFormat": "{{result}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 20, "x": 0, "y": 8}
+      },
+      {
+        "title": "Confidence Distribution",
+        "type": "histogram",
+        "targets": [
+          {
+            "expr": "loan_prediction_confidence_bucket"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 10, "x": 0, "y": 16}
+      },
+      {
+        "title": "Approval Rate",
+        "type": "gauge",
+        "targets": [
+          {
+            "expr": "loan_approval_rate"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 10, "x": 10, "y": 16}
+      }
+    ]
+  }
+}

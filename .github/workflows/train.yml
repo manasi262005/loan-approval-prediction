@@ -3,7 +3,8 @@ name: Loan Model Training Pipeline
 on:
   push:
     paths:
-      - 'data.csv'
+      - 'loan_data.csv'
+      - 'train.py'
 
 jobs:
   train:
@@ -27,4 +28,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: trained-model
-          path: best_model.pkl
+          path: |
+            best_model.pkl
+            model_columns.pkl
+            categorical_cols.pkl
+            metrics.json

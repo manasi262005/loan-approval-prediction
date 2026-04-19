@@ -1,0 +1,12 @@
+# Ignore project plans
+plan loan system copy.md
+plan loan system.md
+guid.md
+
+# Ignore models and datasets
+*.pkl
+metrics.json
+logs/
+mlruns/
+__pycache__/
+.env
