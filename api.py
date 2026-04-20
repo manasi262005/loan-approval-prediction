@@ -10,10 +10,14 @@ import os
 import datetime
 import json
 import time
+from threading import Lock
 
 from monitor import record_prediction, start_metrics_server
 
 app = FastAPI(title="Loan Approval Prediction API")
+
+# Setup thread lock to prevent file corruption during concurrent CSV appends
+csv_lock = Lock()
 
 app.add_middleware(
     CORSMiddleware,
@@ -77,13 +81,16 @@ def predict_loan(req: LoanRequest):
         'Property_Area': req.Property_Area
     }])
 
+    # Prevent division by zero
+    safe_term = req.Loan_Amount_Term if req.Loan_Amount_Term > 0 else 1
+
     # Feature Engineering
     input_data['TotalIncome'] = input_data['ApplicantIncome'] + input_data['CoapplicantIncome']
-    input_data['EMI'] = input_data['LoanAmount'] / input_data['Loan_Amount_Term']
+    input_data['EMI'] = input_data['LoanAmount'] / safe_term
     input_data['BalanceIncome'] = input_data['TotalIncome'] - input_data['EMI']
 
-    # One-Hot Encoding
-    input_encoded = pd.get_dummies(input_data, columns=categorical_cols, drop_first=True)
+    # One-Hot Encoding correctly for a single inference without dropping categories
+    input_encoded = pd.get_dummies(input_data, columns=categorical_cols, drop_first=False)
     
     # Ensure all columns exist
     for col in model_columns:
@@ -96,6 +103,15 @@ def predict_loan(req: LoanRequest):
     prediction = int(model.predict(input_encoded)[0])
     probability = model.predict_proba(input_encoded)[0]
     confidence = float(max(probability))
+
+    # Calculate real financial metrics
+    real_emi = float(req.LoanAmount / safe_term)
+    real_balance = float(input_data['TotalIncome'][0] - real_emi)
+
+    # Business Logic Override: Automatic Rejection if EMI > Income
+    if real_balance < 0:
+        prediction = 0
+        confidence = 1.0
 
     # Log prediction
     result_str = 'Approved' if prediction == 1 else 'Rejected'
@@ -115,10 +131,12 @@ def predict_loan(req: LoanRequest):
     log_file = 'logs/predictions.csv'
     os.makedirs('logs', exist_ok=True)
     log_df = pd.DataFrame([log_entry])
-    if os.path.exists(log_file):
-        log_df.to_csv(log_file, mode='a', header=False, index=False)
-    else:
-        log_df.to_csv(log_file, index=False)
+    
+    with csv_lock:
+        if os.path.exists(log_file):
+            log_df.to_csv(log_file, mode='a', header=False, index=False)
+        else:
+            log_df.to_csv(log_file, index=False)
 
     return {
         "prediction": prediction,
@@ -126,8 +144,8 @@ def predict_loan(req: LoanRequest):
         "confidence": confidence,
         "details": {
             "TotalIncome": float(input_data['TotalIncome'][0]),
-            "EMI": float(req.LoanAmount / req.Loan_Amount_Term),
-            "BalanceIncome": float(input_data['TotalIncome'][0] - (req.LoanAmount / req.Loan_Amount_Term))
+            "EMI": real_emi,
+            "BalanceIncome": real_balance
         }
     }
 
